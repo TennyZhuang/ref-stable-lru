@@ -8,32 +8,6 @@ use std::ptr::NonNull;
 
 type InvariantLifetime<'brand> = PhantomData<fn(&'brand ()) -> &'brand ()>;
 
-// pub fn new_lru_cache<K, V, F>(cap: NonZeroUsize, fun: F)
-// where
-//     F: for<'brand> FnOnce(
-//         ValuePerm<'brand>,
-//         LruCache<'brand, K, V>,
-//     ) -> (ValuePerm<'brand>, LruCache<'brand, K, V>),
-// {
-//     let perm = ValuePerm {
-//         _lifetime: InvariantLifetime::default(),
-//     };
-//     let cache = LruCache::<K, V> {
-//         _lifetime: Default::default(),
-//         map: HashMap::with_capacity(cap.get()),
-//         cap,
-//         head: Box::into_raw(Box::new(LruEntry::new_sigil())),
-//         tail: Box::into_raw(Box::new(LruEntry::new_sigil())),
-//     };
-
-//     unsafe {
-//         (*cache.head).next = cache.tail;
-//         (*cache.tail).prev = cache.head;
-//     }
-
-//     fun(perm, cache);
-// }
-
 pub struct CacheHandle<'cache, 'brand, K, V> {
     _lifetime: InvariantLifetime<'brand>,
     cache: &'cache mut LruCache<K, V>,
