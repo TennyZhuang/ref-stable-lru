@@ -8,30 +8,35 @@ use std::ptr::NonNull;
 
 type InvariantLifetime<'brand> = PhantomData<fn(&'brand ()) -> &'brand ()>;
 
-pub fn new_lru_cache<K, V, F>(cap: NonZeroUsize, fun: F)
-where
-    F: for<'brand> FnOnce(
-        ValuePerm<'brand>,
-        LruCache<'brand, K, V>,
-    ) -> (ValuePerm<'brand>, LruCache<'brand, K, V>),
-{
-    let perm = ValuePerm {
-        _lifetime: InvariantLifetime::default(),
-    };
-    let cache = LruCache::<K, V> {
-        _lifetime: Default::default(),
-        map: HashMap::with_capacity(cap.get()),
-        cap,
-        head: Box::into_raw(Box::new(LruEntry::new_sigil())),
-        tail: Box::into_raw(Box::new(LruEntry::new_sigil())),
-    };
+// pub fn new_lru_cache<K, V, F>(cap: NonZeroUsize, fun: F)
+// where
+//     F: for<'brand> FnOnce(
+//         ValuePerm<'brand>,
+//         LruCache<'brand, K, V>,
+//     ) -> (ValuePerm<'brand>, LruCache<'brand, K, V>),
+// {
+//     let perm = ValuePerm {
+//         _lifetime: InvariantLifetime::default(),
+//     };
+//     let cache = LruCache::<K, V> {
+//         _lifetime: Default::default(),
+//         map: HashMap::with_capacity(cap.get()),
+//         cap,
+//         head: Box::into_raw(Box::new(LruEntry::new_sigil())),
+//         tail: Box::into_raw(Box::new(LruEntry::new_sigil())),
+//     };
 
-    unsafe {
-        (*cache.head).next = cache.tail;
-        (*cache.tail).prev = cache.head;
-    }
+//     unsafe {
+//         (*cache.head).next = cache.tail;
+//         (*cache.tail).prev = cache.head;
+//     }
 
-    fun(perm, cache);
+//     fun(perm, cache);
+// }
+
+pub struct CacheHandle<'cache, 'brand, K, V> {
+    _lifetime: InvariantLifetime<'brand>,
+    cache: &'cache mut LruCache<K, V>,
 }
 
 pub struct ValuePerm<'brand> {
@@ -86,9 +91,7 @@ impl<K, V> LruEntry<K, V> {
     }
 }
 
-pub struct LruCache<'brand, K, V> {
-    _lifetime: InvariantLifetime<'brand>,
-
+pub struct LruCache<K, V> {
     map: HashMap<KeyRef<K>, NonNull<LruEntry<K, V>>>,
     cap: NonZeroUsize,
 
@@ -97,16 +100,42 @@ pub struct LruCache<'brand, K, V> {
     tail: *mut LruEntry<K, V>,
 }
 
-impl<'brand, K: Eq + Hash, V> LruCache<'brand, K, V> {
-    pub fn len(&self) -> usize {
+impl<K: Eq + Hash, V> LruCache<K, V> {
+    pub fn new(cap: NonZeroUsize) -> Self {
+        let cache = LruCache::<K, V> {
+            map: HashMap::with_capacity(cap.get()),
+            cap,
+            head: Box::into_raw(Box::new(LruEntry::new_sigil())),
+            tail: Box::into_raw(Box::new(LruEntry::new_sigil())),
+        };
+
+        unsafe {
+            (*cache.head).next = cache.tail;
+            (*cache.tail).prev = cache.head;
+        };
+
+        cache
+    }
+
+    pub fn scope<'cache, F>(&'cache mut self, fun: F)
+    where
+        for<'brand> F: FnOnce(CacheHandle<'cache, 'brand, K, V>, ValuePerm<'brand>),
+    {
+        let handle = CacheHandle {
+            _lifetime: Default::default(),
+            cache: self.into(),
+        };
+        let perm = ValuePerm {
+            _lifetime: InvariantLifetime::default(),
+        };
+        fun(handle, perm);
+    }
+
+    fn len(&self) -> usize {
         self.map.len()
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn cap(&self) -> NonZeroUsize {
+    fn cap(&self) -> NonZeroUsize {
         self.cap
     }
 
@@ -155,14 +184,29 @@ impl<'brand, K: Eq + Hash, V> LruCache<'brand, K, V> {
             })
         }
     }
+}
 
-    pub fn put<'cache, 'perm>(
-        &'cache mut self,
+impl<'cache, 'brand, K: Hash + Eq, V> CacheHandle<'cache, 'brand, K, V> {
+    pub fn len<'handle, 'perm>(&'handle self) -> usize {
+        self.cache.len()
+    }
+
+    pub fn is_empty<'sperm>(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn cap<'sperm>(&self) -> NonZeroUsize {
+        self.cache.cap()
+    }
+
+    pub fn put<'handle, 'perm>(
+        &'handle mut self,
         k: K,
         mut v: V,
         _perm: &'perm mut ValuePerm<'brand>,
     ) -> Option<V> {
-        let node_ref = self.map.get_mut(&KeyRef { k: &k });
+        let cache = &mut self.cache;
+        let node_ref = cache.map.get_mut(&KeyRef { k: &k });
 
         match node_ref {
             Some(node_ref) => {
@@ -172,34 +216,35 @@ impl<'brand, K: Eq + Hash, V> LruCache<'brand, K, V> {
                 let node_ref = unsafe { &mut (*(*node_ptr).val.as_mut_ptr()) };
                 mem::swap(&mut v, node_ref);
                 let _ = node_ref;
-                self.detach(node_ptr);
-                self.attach(node_ptr);
+                cache.detach(node_ptr);
+                cache.attach(node_ptr);
                 Some(v)
             }
             None => {
-                let (replaced, node) = self.replace_or_create_node(k, v);
+                let (replaced, node) = cache.replace_or_create_node(k, v);
                 let node_ptr: *mut LruEntry<K, V> = node.as_ptr();
 
-                self.attach(node_ptr);
+                cache.attach(node_ptr);
 
                 let keyref = unsafe { (*node_ptr).key.as_ptr() };
-                self.map.insert(KeyRef { k: keyref }, node);
+                cache.map.insert(KeyRef { k: keyref }, node);
 
                 replaced.map(|(_k, v)| v)
             }
         }
     }
 
-    pub fn get<'cache, 'perm>(
-        &'cache mut self,
+    pub fn get<'handle, 'perm>(
+        &mut self,
         k: &K,
         _perm: &'perm ValuePerm<'brand>,
     ) -> Option<&'perm V> {
-        if let Some(node) = self.map.get_mut(&KeyRef { k }) {
+        let cache = &mut self.cache;
+        if let Some(node) = cache.map.get_mut(&KeyRef { k }) {
             let node_ptr: *mut LruEntry<K, V> = node.as_ptr();
 
-            self.detach(node_ptr);
-            self.attach(node_ptr);
+            cache.detach(node_ptr);
+            cache.attach(node_ptr);
 
             Some(unsafe { &*(*node_ptr).val.as_ptr() })
         } else {
@@ -208,12 +253,13 @@ impl<'brand, K: Eq + Hash, V> LruCache<'brand, K, V> {
     }
 
     // get the mutable reference of an entry, but not adjust its position.
-    pub fn peek_mut<'cache, 'perm>(
-        &'cache self,
-        k: &K,
-        _perm: &'perm ValuePerm<'brand>,
+    pub fn peek_mut<'handle, 'key, 'perm>(
+        &'handle self,
+        k: &'key K,
+        _perm: &'perm mut ValuePerm<'brand>,
     ) -> Option<&'perm mut V> {
-        match self.map.get(&KeyRef { k }) {
+        let cache = &self.cache;
+        match cache.map.get(&KeyRef { k }) {
             None => None,
             Some(node) => Some(unsafe { &mut *(*node.as_ptr()).val.as_mut_ptr() }),
         }
@@ -238,7 +284,8 @@ mod tests {
 
     #[test]
     fn test_put_and_get() {
-        new_lru_cache(NonZeroUsize::new(2).unwrap(), |mut perm, mut cache| {
+        let mut cache = LruCache::new(NonZeroUsize::new(2).unwrap());
+        cache.scope(|mut cache, mut perm| {
             assert_eq!(cache.put("apple", "red", &mut perm), None);
             assert_eq!(cache.put("banana", "yellow", &mut perm), None);
 
@@ -247,14 +294,14 @@ mod tests {
             assert!(!cache.is_empty());
             assert_opt_eq(cache.get(&"apple", &perm), "red");
             assert_opt_eq(cache.get(&"banana", &perm), "yellow");
-
-            (perm, cache)
         });
     }
 
     #[test]
     fn test_multi_get() {
-        new_lru_cache(NonZeroUsize::new(2).unwrap(), |mut perm, mut cache| {
+        let mut cache = LruCache::new(NonZeroUsize::new(2).unwrap());
+
+        cache.scope(|mut cache, mut perm| {
             assert_eq!(cache.put("apple", "red", &mut perm), None);
             assert_eq!(cache.put("banana", "yellow", &mut perm), None);
             assert_eq!(cache.put("lemon", "yellow", &mut perm), Some("red"));
@@ -267,14 +314,14 @@ mod tests {
             assert_opt_eq(colors[1], "yellow");
             assert_opt_eq(colors[2], "yellow");
             assert!(colors[3].is_none());
-
-            (perm, cache)
         });
     }
 
     #[test]
     fn test_peek_mut() {
-        new_lru_cache(NonZeroUsize::new(2).unwrap(), |mut perm, mut cache| {
+        let mut cache = LruCache::new(NonZeroUsize::new(2).unwrap());
+
+        cache.scope(|mut cache, mut perm| {
             cache.put("apple", "red", &mut perm);
             cache.put("banana", "yellow", &mut perm);
 
@@ -294,7 +341,6 @@ mod tests {
             }
 
             assert_opt_eq_mut(cache.peek_mut(&"banana", &mut perm), "green");
-            (perm, cache)
         });
     }
 }
