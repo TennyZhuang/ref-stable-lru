@@ -158,6 +158,22 @@ impl<K: Eq + Hash, V> LruCache<K, V> {
             })
         }
     }
+
+    pub fn put(&mut self, k: K, v: V) -> Option<V> {
+        self.scope(|mut cache, mut perm| cache.put(k, v, &mut perm))
+    }
+
+    pub fn get<'cache>(&'cache mut self, k: &K) -> Option<&'cache V> {
+        self.scope(|mut cache, perm| unsafe {
+            std::mem::transmute::<_, Option<&'cache V>>(cache.get(k, &perm))
+        })
+    }
+
+    pub fn peek_mut<'cache>(&'cache mut self, k: &K) -> Option<&'cache mut V> {
+        self.scope(|cache, mut perm| unsafe {
+            std::mem::transmute::<_, Option<&'cache mut V>>(cache.peek_mut(k, &mut perm))
+        })
+    }
 }
 
 impl<'cache, 'brand, K: Hash + Eq, V> CacheHandle<'cache, 'brand, K, V> {
