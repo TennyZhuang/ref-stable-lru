@@ -91,9 +91,9 @@ impl<K: Eq + Hash, V> LruCache<K, V> {
         cache
     }
 
-    pub fn scope<'cache, F>(&'cache mut self, fun: F)
+    pub fn scope<'cache, F, R>(&'cache mut self, fun: F) -> R
     where
-        for<'brand> F: FnOnce(CacheHandle<'cache, 'brand, K, V>, ValuePerm<'brand>),
+        for<'brand> F: FnOnce(CacheHandle<'cache, 'brand, K, V>, ValuePerm<'brand>) -> R,
     {
         let handle = CacheHandle {
             _lifetime: Default::default(),
@@ -102,7 +102,7 @@ impl<K: Eq + Hash, V> LruCache<K, V> {
         let perm = ValuePerm {
             _lifetime: InvariantLifetime::default(),
         };
-        fun(handle, perm);
+        fun(handle, perm)
     }
 
     fn len(&self) -> usize {
