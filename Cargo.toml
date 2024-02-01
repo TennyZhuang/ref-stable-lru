@@ -15,3 +15,4 @@ path = "tests/ui/test.rs"
 
 [dev-dependencies]
 trybuild = "1"
+futures = { version = "0.3", features = ["executor"] }

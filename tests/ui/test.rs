@@ -8,4 +8,5 @@ fn tests() {
     t.pass("tests/ui/len-while-holding-mut.rs");
     t.compile_fail("tests/ui/handle-with-wrong-perm.rs");
     t.pass("tests/ui/drop-handle-while-holding-ref.rs");
+    t.pass("tests/ui/concurrent-use-refs.rs");
 }
