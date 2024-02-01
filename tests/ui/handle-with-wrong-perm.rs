@@ -21,11 +21,11 @@ fn main() {
     });
 
     // Use an outer `perm` to operate inner `handle`.
+    // We don't really want to use `handle1`, but construct a fake `ValuePerm` and try to modify `cache2`.
     cache1.scope(|_handle1, mut perm1| {
         let mut cache2: LruCache<&'static str, String> =
             LruCache::new(NonZeroUsize::new(3).unwrap());
 
-        // We don't really want to use `handle2`, but construct a fake `ValuePerm` and try to modify `cache1`.
         cache2.scope(move |mut handle2, perm2| {
             let x = handle2.get(&"a", &perm2).unwrap().as_str();
             let y = handle2.get(&"b", &perm2).unwrap().as_str();
