@@ -1,0 +1,61 @@
+error[E0521]: borrowed data escapes outside of closure
+  --> tests/ui/handle-with-wrong-perm.rs:18:13
+   |
+8  |     cache1.scope(|mut handle1, perm1| {
+   |                   ----------- `handle1` declared here, outside of the closure body
+...
+13 |         cache2.scope(|_handle2, mut perm2| {
+   |                       -------- `_handle2` is a reference that is only valid in the closure body
+...
+18 |             handle1.put("a", "".to_string(), &mut perm2);
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `_handle2` escapes the closure body here
+   |
+   = note: requirement occurs because of a mutable reference to `ValuePerm<'_>`
+   = note: mutable references are invariant over their type parameter
+   = help: see <https://doc.rust-lang.org/nomicon/subtyping.html> for more information about variance
+
+error[E0521]: borrowed data escapes outside of closure
+  --> tests/ui/handle-with-wrong-perm.rs:18:13
+   |
+8  |     cache1.scope(|mut handle1, perm1| {
+   |                   -----------
+   |                   |
+   |                   `handle1` is a reference that is only valid in the closure body
+   |                   has type `CacheHandle<'_, '1, &str, String>`
+...
+18 |             handle1.put("a", "".to_string(), &mut perm2);
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |             |
+   |             `handle1` escapes the closure body here
+   |             argument requires that `'1` must outlive `'static`
+
+error[E0521]: borrowed data escapes outside of closure
+  --> tests/ui/handle-with-wrong-perm.rs:34:13
+   |
+24 |     cache1.scope(|_handle1, mut perm1| {
+   |                             --------- `perm1` declared here, outside of the closure body
+...
+29 |         cache2.scope(move |mut handle2, perm2| {
+   |                            ----------- `handle2` is a reference that is only valid in the closure body
+...
+34 |             handle2.put("a", "".to_string(), &mut perm1);
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `handle2` escapes the closure body here
+   |
+   = note: requirement occurs because of a mutable reference to `CacheHandle<'_, '_, &str, String>`
+   = note: mutable references are invariant over their type parameter
+   = help: see <https://doc.rust-lang.org/nomicon/subtyping.html> for more information about variance
+
+error[E0521]: borrowed data escapes outside of closure
+  --> tests/ui/handle-with-wrong-perm.rs:34:13
+   |
+24 |     cache1.scope(|_handle1, mut perm1| {
+   |                   --------
+   |                   |
+   |                   `_handle1` is a reference that is only valid in the closure body
+   |                   has type `CacheHandle<'_, '1, &str, String>`
+...
+34 |             handle2.put("a", "".to_string(), &mut perm1);
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |             |
+   |             `_handle1` escapes the closure body here
+   |             argument requires that `'1` must outlive `'static`

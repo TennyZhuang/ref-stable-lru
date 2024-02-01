@@ -4,7 +4,7 @@ The main codes are copy from [lru-rs](https://github.com/jeromefroe/lru-rs), ver
 
 The main motivation for implementing this project is that `LRUCache` should allow multiple immutable references obtained through `get` method.
 
-The main idea is separating the value operating permissions from the data structure itself. I'll give an elaboration in my blog post later.
+The main idea is separating the value operating permissions from the data structure itself. I'll give an elaboration in my blog post later. You can also take a look at [uitest](./tests/ui/test.rs), which explains the API design goals.
 
 ## Example
 
