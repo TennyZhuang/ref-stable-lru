@@ -1,0 +1,11 @@
+error[E0502]: cannot borrow `perm` as mutable because it is also borrowed as immutable
+  --> tests/ui/put-while-holding-ref.rs:16:42
+   |
+11 |         let x = handle.get(&"a", &perm).unwrap().as_str();
+   |                                  ----- immutable borrow occurs here
+...
+16 |         handle.put("c", "d".to_string(), &mut perm);
+   |                                          ^^^^^^^^^ mutable borrow occurs here
+17 |
+18 |         [x, y, z].join(" ")
+   |          - immutable borrow later used here

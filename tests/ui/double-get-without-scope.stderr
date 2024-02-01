@@ -1,0 +1,22 @@
+error[E0499]: cannot borrow `cache` as mutable more than once at a time
+  --> tests/ui/double-get-without-scope.rs:9:13
+   |
+7  |     let x = cache.get(&"a").unwrap().as_str();
+   |             ----- first mutable borrow occurs here
+8  |     // Should failed here, since `x` already mutually borrowed cache.
+9  |     let y = cache.get(&"b").unwrap().as_str();
+   |             ^^^^^ second mutable borrow occurs here
+10 |     let z = cache.get(&"c").unwrap().as_str();
+11 |     [x, y, z].join(" ");
+   |      - first borrow later used here
+
+error[E0499]: cannot borrow `cache` as mutable more than once at a time
+  --> tests/ui/double-get-without-scope.rs:10:13
+   |
+7  |     let x = cache.get(&"a").unwrap().as_str();
+   |             ----- first mutable borrow occurs here
+...
+10 |     let z = cache.get(&"c").unwrap().as_str();
+   |             ^^^^^ second mutable borrow occurs here
+11 |     [x, y, z].join(" ");
+   |      - first borrow later used here
