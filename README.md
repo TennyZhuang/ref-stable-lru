@@ -1,10 +1,13 @@
 # LRU Cache with compile-time reference stability
 
+* [crate](https://crates.io/crates/ref-stable-lru)
+* [blog post][blog_post]
+
 The main codes are copy from [lru-rs](https://github.com/jeromefroe/lru-rs), very grateful for the project.
 
 The main motivation for implementing this project is that `LRUCache` should allow multiple immutable references obtained through `get` method.
 
-The main idea is separating the value operating permissions from the data structure itself. I'll give an elaboration in my blog post later. You can also take a look at [uitest](./tests/ui/test.rs), which explains the API design goals.
+The main idea is separating the value operating permissions from the data structure itself. [The blog post][blog_post] elaborates the idea. You can also take a look at [uitest](./tests/ui/test.rs), which explains the API design goals.
 
 ## Example
 
@@ -28,3 +31,5 @@ cache.scope(|mut cache, mut perm| {
     assert!(colors[3].is_none());
 });
 ```
+
+[blog_post]:https://blog.cocl2.com/posts/rust-ref-stable-collection/
