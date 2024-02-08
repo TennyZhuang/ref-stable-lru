@@ -176,6 +176,21 @@ impl<K: Eq + Hash, V> LruCache<K, V> {
     }
 }
 
+impl<K, V> Drop for LruCache<K, V> {
+    fn drop(&mut self) {
+        self.map.drain().for_each(|(_, node)| unsafe {
+            let mut node = *Box::from_raw(node.as_ptr());
+            ptr::drop_in_place((node).key.as_mut_ptr());
+            ptr::drop_in_place((node).val.as_mut_ptr());
+        });
+        // We rebox the head/tail, and because these are maybe-uninit
+        // they do not have the absent k/v dropped.
+
+        let _head = unsafe { *Box::from_raw(self.head) };
+        let _tail = unsafe { *Box::from_raw(self.tail) };
+    }
+}
+
 impl<'cache, 'brand, K: Hash + Eq, V> CacheHandle<'cache, 'brand, K, V> {
     pub fn len<'handle, 'perm>(&'handle self) -> usize {
         self.cache.len()
