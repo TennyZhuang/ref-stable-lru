@@ -3,9 +3,9 @@
 * [crate](https://crates.io/crates/ref-stable-lru)
 * [blog post][blog_post]
 
-The main codes are copy from [lru-rs](https://github.com/jeromefroe/lru-rs), very grateful for the project.
+The main codes are copy from [lru-rs][lru-rs], very grateful for the project.
 
-The main motivation for implementing this project is that `LRUCache` should allow multiple immutable references obtained through `get` method.
+The main motivation for implementing this project is that `LRUCache` should allow multiple immutable references obtained through `get` method. Currently, this crate is under the active development stage. The purpose of this crate is to validate the new design pattern and hope to apply it to more collection libraries, preferably including std. As for this library itself, I would prefer its proposed new API to be merged [upstream][lru-rs].
 
 The main idea is separating the value operating permissions from the data structure itself. [The blog post][blog_post] elaborates the idea. You can also take a look at [uitest](./tests/ui/test.rs), which explains the API design goals.
 
@@ -33,3 +33,4 @@ cache.scope(|mut cache, mut perm| {
 ```
 
 [blog_post]:https://blog.cocl2.com/posts/rust-ref-stable-collection/
+[lru-rs]:https://github.com/jeromefroe/lru-rs
