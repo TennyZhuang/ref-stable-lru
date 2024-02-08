@@ -32,7 +32,7 @@ error[E0521]: borrowed data escapes outside of closure
 error[E0521]: borrowed data escapes outside of closure
   --> tests/ui/handle-with-wrong-perm.rs:34:13
    |
-24 |     cache1.scope(|_handle1, mut perm1| {
+25 |     cache1.scope(|_handle1, mut perm1| {
    |                             --------- `perm1` declared here, outside of the closure body
 ...
 29 |         cache2.scope(move |mut handle2, perm2| {
@@ -48,7 +48,7 @@ error[E0521]: borrowed data escapes outside of closure
 error[E0521]: borrowed data escapes outside of closure
   --> tests/ui/handle-with-wrong-perm.rs:34:13
    |
-24 |     cache1.scope(|_handle1, mut perm1| {
+25 |     cache1.scope(|_handle1, mut perm1| {
    |                   --------
    |                   |
    |                   `_handle1` is a reference that is only valid in the closure body
